@@ -7,42 +7,54 @@
         "use strict";
 		window.onload = init;
 		
+		
+		//gloabal variables
 		var canvas;
 		var ctx;
+		
+		//bool for use when drawing
 		var dragging=false;
-		var lineWidth;
-		var strokeStyle;
+		
+		//user settings
+		var lineWidth = 3;
+		var strokeStyle = 'black';
 		var refreshRate = false;
+		
 		var socket; 
 		
+		
+		//initializes the program
 		function init(){
 			canvas = document.querySelector('#canvas');
 			ctx = canvas.getContext('2d');
 			
-			lineWidth = 3;
-			strokeStyle = 'black';
-			
+			//sets up canvas settings
 			ctx.lineWidth = lineWidth;
 			ctx.strokeStyle = strokeStyle;
 			ctx.lineCap = "round";
 			ctx.lineJoin = "round";
 			
+			//sets up mouse response function calls for canvas
 			canvas.onmousedown = doMousedown;
 			canvas.onmousemove = doMousemove;
 			canvas.onmouseup = doMouseup;
 			canvas.onmouseout = doMouseout;
 			
+			//connects the socket
 			socket = io.connect();
 			
+			//for when the user joins the server
 			socket.on('connect', function () {
 				socket.emit('newUser');
             });      
 			
+			//for when a user updates the refresh setting
 			socket.on('updateRefresh', function(data) {
 				refreshRate = data;
 				document.querySelector('#refreshControl').checked = refreshRate;
 			});
 			
+			//updates the user count for the server room
 			socket.on('updateUserCount', function(data) {
 				if(data > 1)
 					document.querySelector('#numUsers').innerHTML = "There are " + data + " users currently in this session";
@@ -50,8 +62,10 @@
 					document.querySelector('#numUsers').innerHTML = "You're all alone in here. Go get some friends to draw with you!";
 			});
             
+			//calls update when another user draws something
             socket.on('updatedUsers', update);
 			
+			//callback functions for settings
 			document.querySelector('#lineWidthControl').onchange =  function(e){
 				lineWidth = e.target.value;
 			};
@@ -66,6 +80,7 @@
 			};
 		}
 		
+		//update function for when another user draws something to the canvas
 		function update(data) {
             var image = new Image();
 			image.src = data;
@@ -78,7 +93,8 @@
         }
 		
 		
-		// EVENT CALLBACK FUNCTIONS
+		//the mouse event callback functions
+		//start drawing when the mouse clicks down
 		function doMousedown(e){
 			console.log(e.type);
 			
@@ -89,7 +105,8 @@
 			ctx.beginPath();
 			ctx.moveTo(mouse.x, mouse.y);
 		}
-	 
+		
+		//continue drawing if the mouse is still dragging and the mouse is moving
 		function doMousemove(e) {
 			if(!dragging) return;
 			
@@ -100,34 +117,38 @@
 			ctx.lineTo(mouse.x, mouse.y);
 			ctx.stroke();
 			
+			//send your canvas data to all other users if refresh on draw is set
 			if(refreshRate) {
 				var imgData = canvas.toDataURL();
 				socket.emit('userImageUpdate', imgData);
 			}
 		}
 		
+		//stop drawing if the mouse is no longer being clicked or held
 		function doMouseup(e) {
 			//console.log(e.type);
 			dragging = false;
 			
+			//send canvas data here when user s done drawing to other users if refresh on draw is not set
 			if(!refreshRate) {
 				var imgData = canvas.toDataURL();
 				socket.emit('userImageUpdate', imgData);
 			}
 		}
 		
-		// if the user drags out of the canvas
+		//stop drawing if the user drags out of the canvas
 		function doMouseout(e) {
 			//console.log(e.type);
 			dragging = false;
 			
+			//also send canvas data here when user s done drawing to other users if refresh on draw is not set
 			if(!refreshRate) {
 				var imgData = canvas.toDataURL();
 				socket.emit('userImageUpdate', imgData);
 			}
 		}
 		 
-		
+		//helper function to get mouse data in an easy to understand format
 		function getMouse(e){
 			var mouse = {}
 			mouse.x = e.pageX - e.target.offsetLeft;

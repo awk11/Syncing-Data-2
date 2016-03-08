@@ -6,6 +6,7 @@ var PORT = process.env.PORT || process.env.NODE_PORT || 3000;
 
 app.listen(PORT);
 
+//variables
 var ctxData;
 var refreshRate = false;
 var numUsers = 0;
@@ -25,6 +26,7 @@ io.on('connection', function (socket) {
 
   socket.join('room1');
   
+  //sets everything up for a new user joining the room
   socket.on('newUser', function() {
 	console.log("here");
 	numUsers++;
@@ -33,17 +35,21 @@ io.on('connection', function (socket) {
 	io.sockets.in('room1').emit('updateUserCount', numUsers); 
   });
   
+  //updates the refresh setting for everyybody when a user updates it
   socket.on('refreshChange', function(data) {
 	refreshRate = data;
 	io.sockets.in('room1').emit('updateRefresh', refreshRate);
   });
   
+  //updates every users canvas when a user draws
   socket.on('userImageUpdate', function(data) {
 	ctxData = data;
 	
 	io.sockets.in('room1').emit('updatedUsers', ctxData); 
   });
   
+  
+  //lowers the user count and disconnects the user when one leaves the room
   socket.on('disconnect', function(data) {
 	numUsers--;
 	io.sockets.in('room1').emit('updateUserCount', numUsers); 
