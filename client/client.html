@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Syncing Data 2 - Multi Draw!</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        "use strict";
+		window.onload = init;
+		
+		var canvas;
+		var ctx;
+		var dragging=false;
+		var lineWidth;
+		var strokeStyle;
+		var refreshRate = false;
+		var socket; 
+		
+		function init(){
+			canvas = document.querySelector('#canvas');
+			ctx = canvas.getContext('2d');
+			
+			lineWidth = 3;
+			strokeStyle = 'black';
+			
+			ctx.lineWidth = lineWidth;
+			ctx.strokeStyle = strokeStyle;
+			ctx.lineCap = "round";
+			ctx.lineJoin = "round";
+			
+			canvas.onmousedown = doMousedown;
+			canvas.onmousemove = doMousemove;
+			canvas.onmouseup = doMouseup;
+			canvas.onmouseout = doMouseout;
+			
+			socket = io.connect();
+			
+			socket.on('connect', function () {
+				socket.emit('newUser');
+            });      
+			
+			socket.on('updateRefresh', function(data) {
+				refreshRate = data;
+				document.querySelector('#refreshControl').checked = refreshRate;
+			});
+			
+			socket.on('updateUserCount', function(data) {
+				if(data > 1)
+					document.querySelector('#numUsers').innerHTML = "There are " + data + " users currently in this session";
+				else
+					document.querySelector('#numUsers').innerHTML = "You're all alone in here. Go get some friends to draw with you!";
+			});
+            
+            socket.on('updatedUsers', update);
+			
+			document.querySelector('#lineWidthControl').onchange =  function(e){
+				lineWidth = e.target.value;
+			};
+			
+			document.querySelector('#strokeStyleControl').onchange =  function(e){
+				strokeStyle = e.target.value;
+			};
+			
+			document.querySelector('#refreshControl').onchange =  function(e){
+				refreshRate = e.target.checked;
+				socket.emit('refreshChange', refreshRate);
+			};
+		}
+		
+		function update(data) {
+            var image = new Image();
+			image.src = data;
+			image.onload = function() {
+				ctx.save();
+				ctx.globalCompositeOperation = "source-over"; //this is default for canvas
+				ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+				ctx.restore();
+			};
+        }
+		
+		
+		// EVENT CALLBACK FUNCTIONS
+		function doMousedown(e){
+			console.log(e.type);
+			
+			dragging = true;
+			
+			var mouse = getMouse(e);
+			
+			ctx.beginPath();
+			ctx.moveTo(mouse.x, mouse.y);
+		}
+	 
+		function doMousemove(e) {
+			if(!dragging) return;
+			
+			var mouse = getMouse(e);
+			ctx.strokeStyle = strokeStyle;
+			ctx.lineWidth = lineWidth;
+			
+			ctx.lineTo(mouse.x, mouse.y);
+			ctx.stroke();
+			
+			if(refreshRate) {
+				var imgData = canvas.toDataURL();
+				socket.emit('userImageUpdate', imgData);
+			}
+		}
+		
+		function doMouseup(e) {
+			//console.log(e.type);
+			dragging = false;
+			
+			if(!refreshRate) {
+				var imgData = canvas.toDataURL();
+				socket.emit('userImageUpdate', imgData);
+			}
+		}
+		
+		// if the user drags out of the canvas
+		function doMouseout(e) {
+			//console.log(e.type);
+			dragging = false;
+			
+			if(!refreshRate) {
+				var imgData = canvas.toDataURL();
+				socket.emit('userImageUpdate', imgData);
+			}
+		}
+		 
+		
+		function getMouse(e){
+			var mouse = {}
+			mouse.x = e.pageX - e.target.offsetLeft;
+			mouse.y = e.pageY - e.target.offsetTop;
+			return mouse;
+		}
+    </script>
+	<style>
+		canvas {
+			background: #ffffff;
+			position:absolute;
+			left: 10px;
+			top: 10px;
+			box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+      }
+	  
+	   #control {
+			position: absolute;
+			left: 1025px;
+			top: 25px;
+      }
+	  
+	  #numUsers {
+		position: absolute;
+			left: 1025px;
+			top: 775px;
+	  }
+	</style>
+</head>
+<body>
+    <canvas id="canvas" height="800" width="1000">Get a real browser!</canvas>
+	
+	<div id="control">
+    	<label>Line Width: 
+			<select id="lineWidthControl">
+				<option value="1">1</option>
+				<option value="2">2</option>
+        		<option value="3" selected>3</option>
+        		<option value="4">4</option>
+				<option value="5">5</option>
+        		<option value="6">6</option>
+        		<option value="7">7</option>
+				<option value="8">8</option>
+        		<option value="9">9</option>
+        		<option value="10">10</option>
+    		</select>
+    	</label>
+		<br /><br />
+		<label>Stroke Color: 
+			<select id="strokeStyleControl">
+				<option value="black" selected>Black</option>
+				<option value="blue">Blue</option>
+        		<option value="green">Green</option>
+        		<option value="orange">Orange</option>
+				<option value="purple">Purple</option>
+        		<option value="yellow">Yellow</option>
+        		<option value="gray">Gray</option>
+				<option value="red">Red</option>
+        		<option value="white">White</option>
+        		<option value="cornflowerblue">CF Blue</option>
+    		</select>
+    	</label>
+		<br /><br />
+		<input type="checkbox" name="RefreshRate" id="refreshControl" value="false">Refresh page as users draw<br />(This will slow performance heavily and affects all users)</input>
+	</div>
+	
+	<p id="numUsers"></p>
+</body>
+</html>
